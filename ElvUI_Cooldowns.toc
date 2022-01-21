@@ -1,6 +1,6 @@
 ## Interface: 20503
 ## Author: Neya
-## Version: 0.15
+## Version: 0.1
 ## Title: |cff1784d1ElvUI|r |cffFFB600Cooldowns|r
 ## Notes: Adds animated cooldown bars.
 ## RequiredDeps: ElvUI
