@@ -73,9 +73,16 @@ local function AddCooldown(bar, name, id, start, duration, texture, type)
     cd.type = type
     cd.bar = bar
 
-    cd.icon = cd:CreateTexture(nil, "ARTWORK")
+    --cd:CreateBackdrop("Transparent")
+    --cd.iconHolder = CreateFrame("Frame", cd:GetName().."IconHolder", cd)
+    --cd.iconHolder:SetAllPoints()
+    --cd.iconHolder:SetFrameLevel(cd:GetFrameLevel() + 10)
+    --cd.icon = cd.iconHolder:CreateTexture(cd:GetName().."Icon", "ARTWORK")
+    --cd.icon:SetInside(nil, 2, 2)   
+
+    cd.icon = cd:CreateTexture(cd:GetName().."Icon", "ARTWORK")
     cd.icon:SetTexture(texture)
-    cd.icon:SetAllPoints(cd)    
+    cd.icon:SetAllPoints() 
     S:HandleIcon(cd.icon, true)
 
     cd.cooldown = CreateFrame("Cooldown", cd:GetName().."Cooldown", cd, "CooldownFrameTemplate")
@@ -128,17 +135,17 @@ local function UpdateCooldown(bar, cd)
 
     if cd.type == COOLDOWN_TYPES.SPELL then        
         local start, duration = GetSpellCooldown(cd.id)
-        if start then
+        if start and duration > MIN_DURATION then
             cd.start = start
             cd.duration = duration
         end
     end
 
-    local timeLeft = cd.start + cd.duration - GetTime()
+    cd.timeLeft = cd.start + cd.duration - GetTime()
 
-    if cd.enabled and (timeLeft < 0.01) then
+    if cd.enabled and (cd.timeLeft < 0.01) then
         cd:Disable()
-    elseif (not cd.enabled) and (timeLeft > 0.01) then
+    elseif (not cd.enabled) and (cd.timeLeft > 0.01) then
         cd:Enable()
     end
     
@@ -147,7 +154,7 @@ local function UpdateCooldown(bar, cd)
 
         local width = bar:GetWidth()
         local range = width - cd:GetWidth()
-        local newOffset = CalculateOffset(timeLeft, range)
+        local newOffset = CalculateOffset(cd.timeLeft, range)
 
         cd.offset = cd.offset and Lerp(newOffset, cd.offset, 0.05) or newOffset
         if math.abs(cd.offset - newOffset) <= 0.001 then
@@ -246,6 +253,7 @@ function Addon:CreateCooldownBar(name, config)
                             E.UIParent or _G.UIParent)
     bar:SetPoint("CENTER", E.UIParent or _G.UIParent, "CENTER", 0, 0)
     bar:CreateBackdrop("Transparent")
+
     --bar.backdrop:SetAlpha(0.5)
     bar.db = config
     bar.buttons = {}
@@ -317,7 +325,23 @@ function Addon:UpdateCooldownBar(bar)
 
      bar:SetSize(bar.db.width, bar.db.height)
 
+     local sortedCooldowns = {}
      for name, cd in pairs(bar.cooldowns) do
         bar:UpdateCooldown(cd)
+        if cd.enabled then
+            table.insert(sortedCooldowns, cd)
+        end
+    end
+    
+    table.sort(sortedCooldowns, function(a, b) return a.timeLeft > b.timeLeft end)
+
+    local baseFrameLevel = bar:GetFrameLevel()
+    local frameLevel
+    for i, cd in pairs(sortedCooldowns) do
+        frameLevel = (frameLevel or baseFrameLevel) + 3
+        cd:SetFrameLevel(frameLevel)
+        if cd.icon.backdrop and cd.icon.backdrop.border then
+            cd.icon.backdrop.border:SetFrameLevel(frameLevel + 1)
+        end
     end
 end
