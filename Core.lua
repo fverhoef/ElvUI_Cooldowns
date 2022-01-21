@@ -338,7 +338,7 @@ function Addon:UpdateCooldownBar(bar)
     local baseFrameLevel = bar:GetFrameLevel()
     local frameLevel
     for i, cd in pairs(sortedCooldowns) do
-        frameLevel = (frameLevel or baseFrameLevel) + 3
+        frameLevel = (frameLevel or baseFrameLevel) + 4
         cd:SetFrameLevel(frameLevel)
         if cd.icon.backdrop and cd.icon.backdrop.border then
             cd.icon.backdrop.border:SetFrameLevel(frameLevel + 1)
