@@ -73,13 +73,6 @@ local function AddCooldown(bar, name, id, start, duration, texture, type)
     cd.type = type
     cd.bar = bar
 
-    --cd:CreateBackdrop("Transparent")
-    --cd.iconHolder = CreateFrame("Frame", cd:GetName().."IconHolder", cd)
-    --cd.iconHolder:SetAllPoints()
-    --cd.iconHolder:SetFrameLevel(cd:GetFrameLevel() + 10)
-    --cd.icon = cd.iconHolder:CreateTexture(cd:GetName().."Icon", "ARTWORK")
-    --cd.icon:SetInside(nil, 2, 2)   
-
     cd.icon = cd:CreateTexture(cd:GetName().."Icon", "ARTWORK")
     cd.icon:SetTexture(texture)
     cd.icon:SetAllPoints() 
@@ -135,7 +128,7 @@ local function UpdateCooldown(bar, cd)
 
     if cd.type == COOLDOWN_TYPES.SPELL then        
         local start, duration = GetSpellCooldown(cd.id)
-        if start and duration > MIN_DURATION then
+        if duration and duration > MIN_DURATION then
             cd.start = start
             cd.duration = duration
         end
