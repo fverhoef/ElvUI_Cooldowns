@@ -2,6 +2,10 @@ local addonName, addonTable = ...
 local Addon = addonTable[1]
 local E, L, V, P, G = unpack(ElvUI)
 
+Addon.FILTERS = {
+    NONE = "NONE"
+}
+
 local function GetOptionValue(setting)
     local value = E.db[addonName]
     for i, name in ipairs(setting) do
@@ -107,7 +111,8 @@ P[addonName] = {
         ["Cooldowns"] = {
             width = 396,
             height = 30,
-            iconSize = 30
+            iconSize = 30,
+            filter = Addon.FILTERS.NONE
         }
     }
 }
