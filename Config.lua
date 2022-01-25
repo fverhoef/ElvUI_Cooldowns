@@ -2,6 +2,7 @@ local addonName, addonTable = ...
 local Addon = addonTable[1]
 local E, L, V, P, G = unpack(ElvUI)
 
+Addon.DEFAULT_LABELS = {5, 15, 30, 60, 120, 180, 300}
 Addon.FILTERS = {
     NONE = "NONE"
 }
@@ -112,6 +113,7 @@ P[addonName] = {
             width = 396,
             height = 30,
             iconSize = 30,
+            showLabels = true,
             filter = Addon.FILTERS.NONE
         }
     }
@@ -131,8 +133,9 @@ function Addon:InsertOptions()
                 name = L["Layout"],
                 args = {
                     width = CreateRangeOption(L["Width"], nil, 1, 1, 3000, 1, {"bars", "Cooldowns", "width"}),
-                    height = CreateRangeOption(L["Height"], nil, 1, 1, 3000, 1, {"bars", "Cooldowns", "height"}),
-                    iconSize = CreateRangeOption(L["Icon Size"], nil, 1, 1, 120, 1, {"bars", "Cooldowns", "iconSize"})
+                    height = CreateRangeOption(L["Height"], nil, 2, 1, 3000, 1, {"bars", "Cooldowns", "height"}),
+                    iconSize = CreateRangeOption(L["Icon Size"], nil, 3, 1, 120, 1, {"bars", "Cooldowns", "iconSize"}),
+                    showLabels = CreateToggleOption(L["Show Labels"], nil, 4, "full", {"bars", "Cooldowns", "showLabels"})
                 }
             }
         }

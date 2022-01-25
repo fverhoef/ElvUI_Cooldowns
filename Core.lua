@@ -12,9 +12,12 @@ local SMOOTHING_AMOUNT = 0.33
 local WEAPON_ENCHANT_MAIN = "WEAPON_ENCHANT_MAIN"
 local WEAPON_ENCHANT_OFFHAND = "WEAPON_ENCHANT_OFFHAND"
 local WEAPON_ENCHANT_RANGED = "WEAPON_ENCHANT_RANGED"
+local RES_TIMER = "RES_TIMER"
 local COOLDOWN_TYPES = {
     SPELL = "SPELL",
+    PET = "PET",
     ITEM = "ITEM",
+    RES_TIMER = "RES_TIMER",
     WEAPON_ENCHANT = "WEAPON_ENCHANT"
 }
 
@@ -27,7 +30,10 @@ function Addon:Initialize()
         Addon.masqueGroup = LibStub("Masque", true):Group(Addon.title, "Cooldown Bars", true)
     end
     
+    Addon:RegisterEvent("BAG_UPDATE_COOLDOWN")
     Addon:RegisterEvent("ACTIONBAR_UPDATE_COOLDOWN")
+    Addon:RegisterEvent("PET_BAR_UPDATE_COOLDOWN")
+    Addon:RegisterEvent("PLAYER_DEAD")
     Addon:RegisterEvent("SPELL_UPDATE_COOLDOWN")
     Addon:RegisterEvent("UNIT_INVENTORY_CHANGED")
 
@@ -65,12 +71,24 @@ function Addon:OnSettingChanged(setting)
     end
 end
 
+function Addon:BAG_UPDATE_COOLDOWN()
+    Addon:ScanBags()
+end
+
 function Addon:ACTIONBAR_UPDATE_COOLDOWN()
     Addon:ScanActions()
 end
 
+function Addon:PET_BAR_UPDATE_COOLDOWN()
+    Addon:ScanPetActions()
+end
+
+function Addon:PLAYER_DEAD()
+    Addon:ScanResTimer()
+end
+
 function Addon:SPELL_UPDATE_COOLDOWN()
-    Addon:ScanPlayerSpellBook()
+    Addon:ScanSpellBook()
 end
 
 function Addon:UNIT_INVENTORY_CHANGED()
@@ -107,7 +125,20 @@ function Addon:ScanActions()
     end
 end
 
-function Addon:ScanPlayerSpellBook()
+function Addon:ScanPetActions()
+    for id = 1, 10 do
+        Addon:CheckPetCooldown(id)
+    end
+end
+
+function Addon:ScanResTimer()
+    local resTimer = GetCorpseRecoveryDelay()
+    if resTimer > 0 then
+        Addon:AddCooldown(RES_TIMER, nil, GetTime(), resTimer, "Interface\\Icons\\Ability_Creature_Cursed_02", COOLDOWN_TYPES.RES_TIMER)
+    end
+end
+
+function Addon:ScanSpellBook()
     for i = 1, GetNumSpellTabs() do
         local _, _, offset, numSlots = GetSpellTabInfo(i)
         for j = offset + 1, offset + numSlots do
@@ -212,12 +243,24 @@ function Addon:CheckSpellCooldown(id)
     end
 end
 
+function Addon:CheckPetCooldown(id)
+    if id then
+        local name, _, texture = GetPetActionInfo(id)
+        if name then
+            local start, duration, enabled = GetPetActionCooldown(id)
+            if enabled then
+                Addon:AddCooldown(name, id, start, duration, texture, COOLDOWN_TYPES.PET)
+            end
+        end
+    end
+end
+
 local function CreateMover(frame, name, textString)
     E:CreateMover(frame, name, textString, nil, nil, nil, "ALL,ACTIONBARS")
 end
 
 local function CalculateOffset(timeLeft, range)
-    return max(0, min(1, log10(timeLeft * 0.5) / log10(MAX_DURATION * 0.5)) * range)
+    return max(0, min(1, (0.5 + log10(timeLeft * 0.5)) / (0.5 + log10(MAX_DURATION * 0.5))) * range)
 end
 
 local function UpdateCooldownButton(button)    
@@ -349,59 +392,55 @@ local function UpdateCooldownBar(bar)
 end
 
 local function ConfigureCooldownBar(bar)
-     if not bar then
-         return
-     end
+    if not bar then return end
 
-     bar:SetSize(bar.db.width, bar.db.height)
+    bar:SetSize(bar.db.width, bar.db.height)
 
-     local labels = bar.db.labels or { 5, 10, 30, 60, 120, 180, 300 }
-     for i, time in ipairs(labels) do
-         local label = bar.labels[i]
-         if not label then
+    local labels = bar.db.showLabels and (bar.db.labels or Addon.DEFAULT_LABELS) or {}
+    for i, time in ipairs(labels) do
+        local label = bar.labels[i]
+        if not label then
             label = CreateFrame("Frame", nil, bar)
-    
-            label.text = label:CreateFontString(nil, "BACKGROUND")
+
+            label.text = label:CreateFontString(nil, "OVERLAY")
             label.text:SetAllPoints()
             label.text:SetJustifyH("CENTER")
             label.text:SetJustifyV("CENTER")
             label.text:SetShadowOffset(1, -1)
             label.text:SetFont(_G.STANDARD_TEXT_FONT, 11)
             label.text:SetTextColor(0.5, 0.5, 0.5)
-    
+
             label.indicator = label:CreateTexture(nil, "BACKGROUND")
             label.indicator:SetTexture(E.media.blankTex)
-            label.indicator:SetPoint("TOP", label, "TOP", 0, -2)
-            label.indicator:SetPoint("BOTTOM", label, "BOTTOM", 0, 2)
+            label.indicator:SetPoint("TOP", label, "TOP", 0, -1)
+            label.indicator:SetPoint("BOTTOM", label, "BOTTOM", 0, 1)
             label.indicator:SetWidth(1)
             label.indicator:SetVertexColor(0.5, 0.5, 0.5)
             label.indicator:SetAlpha(0.5)
-         end
-         label:Show()
- 
-         local minutes = math.floor(time / 60)
-         local seconds = time % 60
-         local text 
-         if minutes > 0 and seconds > 0 then
-             text = string.format("%.0fm %.0fs", minutes, seconds)
-         elseif minutes > 0 then
-             text = string.format("%.0fm", minutes)
-         elseif seconds > 0 then
-             text = string.format("%.0fs", seconds)
-         end
-         label.text:SetText(text)
- 
-         label:SetSize(bar.db.height, 24)
-         label:SetPoint("CENTER", bar, "LEFT", math.floor(CalculateOffset(time, bar:GetWidth())), 0)
- 
-         bar.labels[i] = label
-     end
-
-     for i, label in ipairs(bar.labels) do
-        if not labels[i] then
-            label:Hide()
         end
-     end
+        label:Show()
+
+        local minutes = math.floor(time / 60)
+        local seconds = time % 60
+        local text
+        if minutes > 0 and seconds > 0 then
+            text = string.format("%.0fm %.0fs", minutes, seconds)
+        elseif minutes > 0 then
+            text = string.format("%.0fm", minutes)
+        elseif seconds > 0 then
+            text = string.format("%.0fs", seconds)
+        end
+        label.text:SetText(text)
+
+        label:SetSize(bar.db.height, 24)
+        label:SetPoint("CENTER", bar, "LEFT", math.floor(CalculateOffset(time, bar:GetWidth())), 0)
+
+        bar.labels[i] = label
+    end
+
+    for i, label in ipairs(bar.labels) do
+        if not labels[i] then label:Hide() end
+    end
 end
 
 function Addon:CreateCooldownBar(name, config)
